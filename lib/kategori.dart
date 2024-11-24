@@ -10,14 +10,25 @@ class KategoriScreen extends StatefulWidget {
 
 class _KategoriScreenState extends State<KategoriScreen> {
   List<Kategori> kategoriList = [];
+  List<Kategori> filteredKategoriList = [];
   bool isLoading = true;
   bool isGuest = false;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
     _checkGuestStatus();
     fetchKategori();
+  }
+
+  void filterKategori(String query) {
+    setState(() {
+      filteredKategoriList = kategoriList
+          .where((kategori) =>
+              kategori.judul.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -35,7 +46,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
       
       if (isGuest) {
         final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori'),
+          Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
           headers: {
             'Accept': 'application/json',
           },
@@ -47,6 +58,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
             List<dynamic> data = responseData['data'];
             setState(() {
               kategoriList = data.map((json) => Kategori.fromJson(json)).toList();
+              filteredKategoriList = kategoriList;
               isLoading = false;
             });
           }
@@ -59,7 +71,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -72,6 +84,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
           List<dynamic> data = responseData['data'];
           setState(() {
             kategoriList = data.map((json) => Kategori.fromJson(json)).toList();
+            filteredKategoriList = kategoriList;
             isLoading = false;
           });
         }
@@ -152,7 +165,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -185,7 +198,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.put(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori/$id'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -218,7 +231,7 @@ class _KategoriScreenState extends State<KategoriScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.delete(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/apii/kategori/$id'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -285,41 +298,61 @@ class _KategoriScreenState extends State<KategoriScreen> {
             ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: kategoriList.length,
-              itemBuilder: (context, index) {
-                final kategori = kategoriList[index];
-                return Card(
-                  margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: Text(
-                      kategori.judul,
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                    trailing: !isGuest
-                        ? PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showAddEditKategoriModal(kategori: kategori);
-                              } else if (value == 'delete') {
-                                confirmDelete(kategori);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete', style: TextStyle(color: Colors.red)),
-                              ),
-                            ],
-                          )
-                        : null,
-                  ),
-                );
-              },
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                labelText: 'Cari Kategori',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+              onChanged: filterKategori,
             ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: filteredKategoriList.length,
+                    itemBuilder: (context, index) {
+                      final kategori = filteredKategoriList[index];
+                      return Card(
+                        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          title: Text(
+                            kategori.judul,
+                            style: TextStyle(fontWeight: FontWeight.bold),
+                          ),
+                          trailing: !isGuest
+                              ? PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      showAddEditKategoriModal(kategori: kategori);
+                                    } else if (value == 'delete') {
+                                      confirmDelete(kategori);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                )
+                              : null,
+                        ),
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -345,4 +378,4 @@ class Kategori {
       updatedAt: json['updated_at'],
     );
   }
-} 
+}

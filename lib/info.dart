@@ -13,14 +13,49 @@ class InfoScreen extends StatefulWidget {
 
 class _InfoScreenState extends State<InfoScreen> {
   List<Info> infoList = [];
+  List<Info> filteredInfoList = [];
+  List<KategoriOption> kategoriOptions = [];
   File? _selectedImage;
+  bool isLoading = true;
   bool isGuest = false;
+  TextEditingController searchController = TextEditingController();
+  int? selectedKategoriFilter;
 
   @override
   void initState() {
     super.initState();
     _checkGuestStatus();
     fetchInfo();
+    fetchKategori();
+  }
+
+  void filterInfo(String query) {
+    setState(() {
+      filteredInfoList = infoList.where((info) {
+        bool matchesSearch =
+            info.judul.toLowerCase().contains(query.toLowerCase()) ||
+                info.ringkasan.toLowerCase().contains(query.toLowerCase());
+        bool matchesKategori = selectedKategoriFilter == null ||
+            info.kategoriId == selectedKategoriFilter;
+        return matchesSearch && matchesKategori;
+      }).toList();
+    });
+  }
+
+  void filterByKategori(int? kategoriId) {
+    setState(() {
+      selectedKategoriFilter = kategoriId;
+      if (kategoriId == null) {
+        filteredInfoList = infoList;
+      } else {
+        filteredInfoList =
+            infoList.where((info) => info.kategoriId == kategoriId).toList();
+      }
+      // Re-apply search filter if there's text in search
+      if (searchController.text.isNotEmpty) {
+        filterInfo(searchController.text);
+      }
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -35,35 +70,13 @@ class _InfoScreenState extends State<InfoScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       final isGuest = prefs.getBool('is_guest') ?? false;
-      
-      if (isGuest) {
-        final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/informasi'),
-          headers: {
-            'Accept': 'application/json',
-          },
-        ).timeout(Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          List<dynamic> data = jsonDecode(response.body);
-          setState(() {
-            infoList = data.map((json) => Info.fromJson(json)).toList();
-          });
-        } else {
-          throw Exception('Failed to load info');
-        }
-        return;
-      }
-
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/informasi'),
+        Uri.parse(
+            'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/informasi'),
         headers: {
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (!isGuest && token != null) 'Authorization': 'Bearer $token',
         },
       ).timeout(Duration(seconds: 10));
 
@@ -79,6 +92,7 @@ class _InfoScreenState extends State<InfoScreen> {
         List<dynamic> data = jsonDecode(response.body);
         setState(() {
           infoList = data.map((json) => Info.fromJson(json)).toList();
+          filteredInfoList = infoList;
         });
       } else {
         throw Exception('Failed to load info');
@@ -93,6 +107,35 @@ class _InfoScreenState extends State<InfoScreen> {
           ),
         );
       }
+    }
+  }
+
+  Future<void> fetchKategori() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('token');
+
+      final response = await http.get(
+        Uri.parse(
+            'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
+        headers: {
+          'Accept': 'application/json',
+          if (token != null) 'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body);
+        if (responseData['status'] == 'success') {
+          List<dynamic> data = responseData['data'];
+          setState(() {
+            kategoriOptions =
+                data.map((json) => KategoriOption.fromJson(json)).toList();
+          });
+        }
+      }
+    } catch (e) {
+      print("Error fetching kategori: $e");
     }
   }
 
@@ -161,127 +204,153 @@ class _InfoScreenState extends State<InfoScreen> {
     final contentController = TextEditingController(text: info?.isi);
     final summaryController = TextEditingController(text: info?.ringkasan);
     final statusController = TextEditingController(text: info?.status);
-    final kategoriController = TextEditingController(text: info?.kategoriId.toString());
+    int? selectedKategoriId = info?.kategoriId;
 
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       builder: (BuildContext context) {
-        return Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.of(context).viewInsets.bottom,
-          ),
-          child: Container(
-            padding: EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  info == null ? 'Tambah Informasi' : 'Edit Informasi',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(
-                    labelText: 'Judul',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 8),
-                TextField(
-                  controller: contentController,
-                  decoration: InputDecoration(
-                    labelText: 'Isi',
-                    border: OutlineInputBorder(),
-                  ),
-                  maxLines: 3,
-                ),
-                SizedBox(height: 8),
-                TextField(
-                  controller: summaryController,
-                  decoration: InputDecoration(
-                    labelText: 'Ringkasan',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 8),
-                TextField(
-                  controller: statusController,
-                  decoration: InputDecoration(
-                    labelText: 'Status',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-                SizedBox(height: 8),
-                TextField(
-                  controller: kategoriController,
-                  decoration: InputDecoration(
-                    labelText: 'Kategori ID',
-                    border: OutlineInputBorder(),
-                  ),
-                  keyboardType: TextInputType.number,
-                ),
-                SizedBox(height: 16),
-                if (_selectedImage != null)
-                  Image.file(
-                    _selectedImage!,
-                    height: 100,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                  ),
-                TextButton.icon(
-                  onPressed: _pickImage,
-                  icon: Icon(Icons.photo_camera),
-                  label: Text(_selectedImage != null ? 'Ganti Gambar' : 'Pilih Gambar'),
-                ),
-                SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: () async {
-                    try {
-                      if (info == null) {
-                        await addInfo(
-                          titleController.text,
-                          contentController.text,
-                          summaryController.text,
-                          statusController.text,
-                          int.parse(kategoriController.text),
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Container(
+                padding: EdgeInsets.all(16.0),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      info == null ? 'Tambah Informasi' : 'Edit Informasi',
+                      style:
+                          TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                      textAlign: TextAlign.center,
+                    ),
+                    SizedBox(height: 16),
+                    TextField(
+                      controller: titleController,
+                      decoration: InputDecoration(
+                        labelText: 'Judul',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextField(
+                      controller: contentController,
+                      decoration: InputDecoration(
+                        labelText: 'Isi',
+                        border: OutlineInputBorder(),
+                      ),
+                      maxLines: 3,
+                    ),
+                    SizedBox(height: 8),
+                    TextField(
+                      controller: summaryController,
+                      decoration: InputDecoration(
+                        labelText: 'Ringkasan',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    TextField(
+                      controller: statusController,
+                      decoration: InputDecoration(
+                        labelText: 'Status',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    DropdownButtonFormField<int>(
+                      value: selectedKategoriId,
+                      decoration: InputDecoration(
+                        labelText: 'Kategori',
+                        border: OutlineInputBorder(),
+                        contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      ),
+                      items: kategoriOptions.map((kategori) {
+                        return DropdownMenuItem(
+                          value: kategori.id,
+                          child: Text(kategori.judul),
                         );
-                      } else {
-                        await updateInfo(
-                          info.id,
-                          titleController.text,
-                          contentController.text,
-                          summaryController.text,
-                          statusController.text,
-                          int.parse(kategoriController.text),
-                        );
-                      }
-                      Navigator.pop(context);
-                      fetchInfo();
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error: $e')),
-                      );
-                    }
-                  },
-                  child: Text(info == null ? 'Tambah' : 'Update'),
-                  style: ElevatedButton.styleFrom(
-                    padding: EdgeInsets.symmetric(vertical: 16),
-                  ),
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() {
+                          selectedKategoriId = value;
+                        });
+                      },
+                    ),
+                    SizedBox(height: 16),
+                    if (_selectedImage != null)
+                      Image.file(
+                        _selectedImage!,
+                        height: 100,
+                        width: double.infinity,
+                        fit: BoxFit.cover,
+                      ),
+                    TextButton.icon(
+                      onPressed: _pickImage,
+                      icon: Icon(Icons.photo_camera),
+                      label: Text(_selectedImage != null
+                          ? 'Ganti Gambar'
+                          : 'Pilih Gambar'),
+                    ),
+                    SizedBox(height: 16),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (selectedKategoriId == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Silakan pilih kategori')),
+                          );
+                          return;
+                        }
+
+                        try {
+                          if (info == null) {
+                            await addInfo(
+                              titleController.text,
+                              contentController.text,
+                              summaryController.text,
+                              statusController.text,
+                              selectedKategoriId!,
+                            );
+                          } else {
+                            await updateInfo(
+                              info.id,
+                              titleController.text,
+                              contentController.text,
+                              summaryController.text,
+                              statusController.text,
+                              selectedKategoriId!,
+                            );
+                          }
+                          Navigator.pop(context);
+                          fetchInfo();
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text('Error: $e')),
+                          );
+                        }
+                      },
+                      child: Text(info == null ? 'Tambah' : 'Update'),
+                      style: ElevatedButton.styleFrom(
+                        padding: EdgeInsets.symmetric(vertical: 16),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
+              ),
+            );
+          },
         );
       },
     );
   }
 
   Future<void> _pickImage() async {
-    final pickedFile = await ImagePicker().pickImage(source: ImageSource.gallery);
+    final pickedFile =
+        await ImagePicker().pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
         _selectedImage = File(pickedFile.path);
@@ -289,18 +358,20 @@ class _InfoScreenState extends State<InfoScreen> {
     }
   }
 
-  Future<void> addInfo(String judul, String isi, String ringkasan, String status, int kategoriId) async {
+  Future<void> addInfo(String judul, String isi, String ringkasan,
+      String status, int kategoriId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       if (token == null) {
         throw Exception('Not authenticated');
       }
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/informasi'),
+        Uri.parse(
+            'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/informasi'),
       );
 
       request.headers.addAll({
@@ -344,7 +415,6 @@ class _InfoScreenState extends State<InfoScreen> {
       setState(() {
         _selectedImage = null;
       });
-
     } catch (e) {
       print('Error in addInfo: $e');
       if (mounted) {
@@ -359,18 +429,20 @@ class _InfoScreenState extends State<InfoScreen> {
     }
   }
 
-  Future<void> updateInfo(int id, String judul, String isi, String ringkasan, String status, int kategoriId) async {
+  Future<void> updateInfo(int id, String judul, String isi, String ringkasan,
+      String status, int kategoriId) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
-      
+
       if (token == null) {
         throw Exception('Not authenticated');
       }
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/informasi/$id'),
+        Uri.parse(
+            'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/informasi/$id'),
       );
 
       request.headers.addAll({
@@ -414,7 +486,6 @@ class _InfoScreenState extends State<InfoScreen> {
       setState(() {
         _selectedImage = null;
       });
-
     } catch (e) {
       print('Error in updateInfo: $e');
       if (mounted) {
@@ -431,7 +502,8 @@ class _InfoScreenState extends State<InfoScreen> {
 
   Future<void> deleteInfo(int id) async {
     final response = await http.delete(
-      Uri.parse('http://10.0.2.2/Web_Gallery/public/api/informasi/$id'),
+      Uri.parse(
+          'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/informasi/$id'),
     );
 
     if (response.statusCode != 200) {
@@ -485,57 +557,111 @@ class _InfoScreenState extends State<InfoScreen> {
             ),
         ],
       ),
-      body: ListView.builder(
-        itemCount: infoList.length,
-        itemBuilder: (context, index) {
-          final info = infoList[index];
-          return Card(
-            margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            child: ListTile(
-              title: Text(
-                info.judul,
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    info.ringkasan,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Kategori: ${info.kategori}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.blue,
+      body: Column(
+        children: [
+          Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      labelText: 'Cari Informasi',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
                     ),
+                    onChanged: filterInfo,
                   ),
-                ],
-              ),
-              trailing: !isGuest
-                  ? PopupMenuButton<String>(
-                      onSelected: (value) {
-                        if (value == 'edit') {
-                          showAddEditInfoModal(info: info);
-                        } else if (value == 'delete') {
-                          confirmDelete(info);
-                        }
-                      },
-                      itemBuilder: (context) => [
-                        PopupMenuItem(value: 'edit', child: Text('Edit')),
-                        PopupMenuItem(
-                          value: 'delete',
-                          child: Text('Delete', style: TextStyle(color: Colors.red)),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  flex: 1,
+                  child: DropdownButtonFormField<int>(
+                    value: selectedKategoriFilter,
+                    decoration: InputDecoration(
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                    ),
+                    items: [
+                      DropdownMenuItem<int>(
+                        value: null,
+                        child: Text('Semua'),
+                      ),
+                      ...kategoriOptions.map((kategori) {
+                        return DropdownMenuItem(
+                          value: kategori.id,
+                          child: Text(kategori.judul),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: filterByKategori,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView.builder(
+              itemCount: filteredInfoList.length,
+              itemBuilder: (context, index) {
+                final info = filteredInfoList[index];
+                return Card(
+                  margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  child: ListTile(
+                    title: Text(
+                      info.judul,
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                    subtitle: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          info.ringkasan,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Kategori: ${info.kategori}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue,
+                          ),
                         ),
                       ],
-                    )
-                  : null,
-              onTap: () => showInfoDetail(info),
+                    ),
+                    trailing: !isGuest
+                        ? PopupMenuButton<String>(
+                            onSelected: (value) {
+                              if (value == 'edit') {
+                                showAddEditInfoModal(info: info);
+                              } else if (value == 'delete') {
+                                confirmDelete(info);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(value: 'edit', child: Text('Edit')),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Text('Delete',
+                                    style: TextStyle(color: Colors.red)),
+                              ),
+                            ],
+                          )
+                        : null,
+                    onTap: () => showInfoDetail(info),
+                  ),
+                );
+              },
             ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
@@ -582,3 +708,16 @@ class Info {
   }
 }
 
+class KategoriOption {
+  final int id;
+  final String judul;
+
+  KategoriOption({required this.id, required this.judul});
+
+  factory KategoriOption.fromJson(Map<String, dynamic> json) {
+    return KategoriOption(
+      id: json['KategoriID'],
+      judul: json['judul'],
+    );
+  }
+}

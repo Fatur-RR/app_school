@@ -26,10 +26,12 @@ class AlbumOption {
 
 class _GaleryScreenState extends State<GaleryScreen> {
   List<Photo> photoList = [];
+  List<Photo> filteredPhotoList = [];
   List<AlbumOption> albumOptions = [];
   File? _selectedImage;
   bool isLoading = true;
   bool isGuest = false;
+  TextEditingController searchController = TextEditingController();
 
   @override
   void initState() {
@@ -37,6 +39,21 @@ class _GaleryScreenState extends State<GaleryScreen> {
     _checkGuestStatus();
     fetchPhotos();
     fetchAlbums();
+  }
+
+  void filterPhotos(String query) {
+    setState(() {
+      if (query.isEmpty) {
+        filteredPhotoList = List.from(photoList);
+      } else {
+        filteredPhotoList = photoList
+            .where((photo) =>
+                photo.judul.toLowerCase().contains(query.toLowerCase()) ||
+                photo.deskripsi.toLowerCase().contains(query.toLowerCase()) ||
+                (photo.albumName?.toLowerCase().contains(query.toLowerCase()) ?? false))
+            .toList();
+      }
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -54,7 +71,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
       
       if (isGuest) {
         final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto'),
+          Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto'),
           headers: {
             'Accept': 'application/json',
           },
@@ -64,6 +81,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
           List<dynamic> data = jsonDecode(response.body);
           setState(() {
             photoList = data.map((json) => Photo.fromJson(json)).toList();
+            filteredPhotoList = List.from(photoList);
             isLoading = false;
           });
         }
@@ -75,7 +93,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -88,6 +106,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
         List<dynamic> data = jsonDecode(response.body);
         setState(() {
           photoList = data.map((json) => Photo.fromJson(json)).toList();
+          filteredPhotoList = List.from(photoList);
           isLoading = false;
         });
       } else if (response.statusCode == 401) {
@@ -113,7 +132,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -331,7 +350,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto'),
       );
 
       request.headers.addAll({
@@ -384,7 +403,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
 
       var request = http.MultipartRequest(
         'POST',
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto/$id'),
       );
 
       request.headers.addAll({
@@ -441,7 +460,7 @@ class _GaleryScreenState extends State<GaleryScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.delete(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto/$id'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -575,112 +594,88 @@ class _GaleryScreenState extends State<GaleryScreen> {
             ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : GridView.builder(
-              padding: const EdgeInsets.all(8.0),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
-                childAspectRatio: 0.8,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: TextField(
+              controller: searchController,
+              decoration: InputDecoration(
+                hintText: 'Search Photo',
+                prefixIcon: Icon(Icons.search),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                filled: true,
+                fillColor: Theme.of(context).scaffoldBackgroundColor,
               ),
-              itemCount: photoList.length,
-              itemBuilder: (context, index) {
-                final photo = photoList[index];
-                return GestureDetector(
-                  onTap: () => _showPhotoDetail(photo),
-                  child: Card(
-                    elevation: 4.0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(15),
+              onChanged: filterPhotos,
+            ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
+                      childAspectRatio: 1, // Mengubah rasio menjadi 1:1
                     ),
-                    child: Stack(
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            Expanded(
-                              flex: 3, // Memberikan ruang lebih untuk foto
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                    itemCount: filteredPhotoList.length,
+                    itemBuilder: (context, index) {
+                      final photo = filteredPhotoList[index];
+                      return GestureDetector(
+                        onTap: () => _showPhotoDetail(photo),
+                        child: Card(
+                          elevation: 4.0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Stack(
+                            children: [
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(15),
                                 child: Image.network(
                                   photo.file,
                                   fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
                                   errorBuilder: (context, error, stackTrace) =>
                                       Icon(Icons.image, size: 50),
                                 ),
                               ),
-                            ),
-                            Expanded(
-                              flex: 2, // Ruang untuk teks
-                              child: Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      photo.judul,
-                                      style: TextStyle(
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.bold,
+                              if (!isGuest)
+                                Positioned(
+                                  right: 0,
+                                  top: 0,
+                                  child: PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'edit') {
+                                        showAddEditPhotoModal(photo: photo);
+                                      } else if (value == 'delete') {
+                                        confirmDelete(photo);
+                                      }
+                                    },
+                                    itemBuilder: (context) => [
+                                      PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                      PopupMenuItem(
+                                        value: 'delete',
+                                        child: Text('Delete', style: TextStyle(color: Colors.red)),
                                       ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      photo.deskripsi,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey[600],
-                                      ),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Album: ${photo.albumName ?? "Unknown"}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.blue,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (!isGuest)
-                          Positioned(
-                            right: 0,
-                            top: 0,
-                            child: PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'edit') {
-                                  showAddEditPhotoModal(photo: photo);
-                                } else if (value == 'delete') {
-                                  confirmDelete(photo);
-                                }
-                              },
-                              itemBuilder: (context) => [
-                                PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                PopupMenuItem(
-                                  value: 'delete',
-                                  child: Text('Delete', style: TextStyle(color: Colors.red)),
-                                ),
-                              ],
-                            ),
+                            ],
                           ),
-                      ],
-                    ),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

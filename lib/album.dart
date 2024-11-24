@@ -24,9 +24,12 @@ class KategoriOption {
 
 class _AlbumScreenState extends State<AlbumScreen> {
   List<Album> albumList = [];
+  List<Album> filteredAlbumList = [];
   List<KategoriOption> kategoriOptions = [];
   bool isLoading = true;
   bool isGuest = false;
+  TextEditingController searchController = TextEditingController();
+  int? selectedKategoriId; // Added for kategori filter
 
   @override
   void initState() {
@@ -34,6 +37,23 @@ class _AlbumScreenState extends State<AlbumScreen> {
     _checkGuestStatus();
     fetchAlbums();
     fetchKategori();
+    searchController.addListener(_filterAlbums);
+  }
+
+  void _filterAlbums() {
+    String searchTerm = searchController.text.toLowerCase();
+    setState(() {
+      filteredAlbumList = albumList.where((album) {
+        bool matchesSearch = searchTerm.isEmpty ||
+            album.nama.toLowerCase().contains(searchTerm) ||
+            album.deskripsi.toLowerCase().contains(searchTerm);
+            
+        bool matchesKategori = selectedKategoriId == null || 
+            album.kategoriId == selectedKategoriId;
+            
+        return matchesSearch && matchesKategori;
+      }).toList();
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -49,33 +69,11 @@ class _AlbumScreenState extends State<AlbumScreen> {
       final token = prefs.getString('token');
       final isGuest = prefs.getBool('is_guest') ?? false;
       
-      if (isGuest) {
-        final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums'),
-          headers: {
-            'Accept': 'application/json',
-          },
-        ).timeout(Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          List<dynamic> data = jsonDecode(response.body);
-          setState(() {
-            albumList = data.map((json) => Album.fromJson(json)).toList();
-            isLoading = false;
-          });
-        }
-        return;
-      }
-
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums'),
         headers: {
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (!isGuest && token != null) 'Authorization': 'Bearer $token',
         },
       ).timeout(Duration(seconds: 10));
 
@@ -83,6 +81,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
         List<dynamic> data = jsonDecode(response.body);
         setState(() {
           albumList = data.map((json) => Album.fromJson(json)).toList();
+          filteredAlbumList = List.from(albumList);
           isLoading = false;
         });
       }
@@ -97,7 +96,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
   Future<List<Photo>> fetchPhotos(int albumId) async {
     try {
       final response = await http
-          .get(Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums/$albumId'))
+          .get(Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums/$albumId'))
           .timeout(Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -457,7 +456,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -496,7 +495,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.put(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums/$id'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -535,7 +534,7 @@ class _AlbumScreenState extends State<AlbumScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.delete(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/albums/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/albums/$id'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -601,15 +600,11 @@ class _AlbumScreenState extends State<AlbumScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
         headers: {
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null) 'Authorization': 'Bearer $token',
         },
       );
 
@@ -641,93 +636,155 @@ class _AlbumScreenState extends State<AlbumScreen> {
             ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : GridView.builder(
-              padding: const EdgeInsets.all(8.0),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                crossAxisSpacing: 8.0,
-                mainAxisSpacing: 8.0,
-                childAspectRatio: 0.8,
-              ),
-              itemCount: albumList.length,
-              itemBuilder: (context, index) {
-                final album = albumList[index];
-                return GestureDetector(
-                  onTap: () => _showPhotosDialog(album.id),
-                  onLongPress: !isGuest ? () => showAddEditAlbumModal(album: album) : null,
-                  child: Stack(
-                    children: [
-                      Card(
-                        elevation: 4.0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(15),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search Album',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
+                    ),
+                  ),
+                ),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8),
+                    decoration: BoxDecoration(
+                      border: Border.all(color: Colors.grey),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: DropdownButton<int>(
+                      value: selectedKategoriId,
+                      isExpanded: true,
+                      hint: Text('Kategori'),
+                      underline: SizedBox(),
+                      items: [
+                        DropdownMenuItem<int>(
+                          value: null,
+                          child: Text('Semua'),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                        ...kategoriOptions.map((kategori) {
+                          return DropdownMenuItem(
+                            value: kategori.id,
+                            child: Text(kategori.judul),
+                          );
+                        }).toList(),
+                      ],
+                      onChanged: (value) {
+                        setState(() {
+                          selectedKategoriId = value;
+                          _filterAlbums();
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : GridView.builder(
+                    padding: const EdgeInsets.all(8.0),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 2,
+                      crossAxisSpacing: 8.0,
+                      mainAxisSpacing: 8.0,
+                      childAspectRatio: 0.8,
+                    ),
+                    itemCount: filteredAlbumList.length,
+                    itemBuilder: (context, index) {
+                      final album = filteredAlbumList[index];
+                      return GestureDetector(
+                        onTap: () => _showPhotosDialog(album.id),
+                        onLongPress: !isGuest ? () => showAddEditAlbumModal(album: album) : null,
+                        child: Stack(
                           children: [
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
-                                  image: DecorationImage(
-                                    image: NetworkImage(album.coverImageUrl),
-                                    fit: BoxFit.cover,
-                                  ),
-                                ),
+                            Card(
+                              elevation: 4.0,
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(8.0),
                               child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
-                                  Text(
-                                    album.nama,
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.blueAccent,
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.vertical(top: Radius.circular(15)),
+                                        image: DecorationImage(
+                                          image: NetworkImage(album.coverImageUrl),
+                                          fit: BoxFit.cover,
+                                        ),
+                                      ),
                                     ),
-                                    textAlign: TextAlign.center,
                                   ),
-                                  SizedBox(height: 4),
-                                  Text(
-                                    album.deskripsi,
-                                    style: TextStyle(fontSize: 14, color: Colors.black87),
-                                    textAlign: TextAlign.center,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Column(
+                                      children: [
+                                        Text(
+                                          album.nama,
+                                          style: TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.blueAccent,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        SizedBox(height: 4),
+                                        Text(
+                                          album.deskripsi,
+                                          style: TextStyle(fontSize: 14, color: Colors.black87),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
+                            if (!isGuest)
+                              Positioned(
+                                right: 0,
+                                top: 0,
+                                child: PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      showAddEditAlbumModal(album: album);
+                                    } else if (value == 'delete') {
+                                      confirmDelete(album);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                    PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: Colors.red))),
+                                  ],
+                                ),
+                              ),
                           ],
                         ),
-                      ),
-                      if (!isGuest)
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showAddEditAlbumModal(album: album);
-                              } else if (value == 'delete') {
-                                confirmDelete(album);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(value: 'delete', child: Text('Delete')),
-                            ],
-                          ),
-                        ),
-                    ],
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

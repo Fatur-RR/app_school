@@ -16,15 +16,9 @@ class WelcomeScreen extends StatefulWidget {
 class _WelcomeScreenState extends State<WelcomeScreen> {
   int _selectedIndex = 0;
   String userName = '';
-  
-  final List<Widget> _pages = [
-    HomeScreen(),
-    InfoScreen(),
-    AgendaScreen(),
-    GaleryScreen(),
-    AlbumScreen(),
-    KategoriScreen(),
-  ];
+  bool isGuest = false;
+
+  late List<Widget> _pages;
 
   @override
   void initState() {
@@ -36,14 +30,32 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final name = prefs.getString('name');
+      final guest = prefs.getBool('is_guest') ?? false;
       setState(() {
         userName = name ?? 'User';
+        isGuest = guest;
+        _pages = [
+          HomeScreen(),
+          InfoScreen(),
+          AgendaScreen(),
+          AlbumScreen(),
+          GaleryScreen(),
+          if (!isGuest) KategoriScreen(),
+        ];
       });
       print('Loaded user name: $userName'); // Debug print
     } catch (e) {
       print('Error loading user data: $e');
       setState(() {
         userName = 'User';
+        isGuest = true;
+        _pages = [
+          HomeScreen(),
+          InfoScreen(),
+          AgendaScreen(),
+          AlbumScreen(),
+          GaleryScreen(),
+        ];
       });
     }
   }
@@ -129,38 +141,67 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
         ],
       ),
       body: _pages[_selectedIndex],
-      bottomNavigationBar: BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.info),
-            label: 'Info',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.event),
-            label: 'Agenda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_library),
-            label: 'Gallery',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.photo_album),
-            label: 'Album',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.category),
-            label: 'Kategori',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Colors.blue,
-        unselectedItemColor: Colors.grey,
-        onTap: _onItemTapped,
+      bottomNavigationBar: Container(
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.3),
+              spreadRadius: 2,
+              blurRadius: 15,
+              offset: Offset(0, -3),
+            ),
+          ],
+        ),
+        margin: EdgeInsets.all(16),
+        child: BottomNavigationBar(
+          type: BottomNavigationBarType.fixed,
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          selectedFontSize: 12,
+          unselectedFontSize: 12,
+          iconSize: 28,
+          items: <BottomNavigationBarItem>[
+            BottomNavigationBarItem(
+              icon: Icon(Icons.home),
+              label: 'Home',
+              backgroundColor: Colors.transparent,
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.info),
+              label: 'Info',
+              backgroundColor: Colors.transparent,
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.event),
+              label: 'Agenda',
+              backgroundColor: Colors.transparent,
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.photo_album),
+              label: 'Album',
+              backgroundColor: Colors.transparent,
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.photo_library),
+              label: 'Gallery',
+              backgroundColor: Colors.transparent,
+            ),
+            if (!isGuest)
+              BottomNavigationBarItem(
+                icon: Icon(Icons.category),
+                label: 'Kategori',
+                backgroundColor: Colors.transparent,
+              ),
+          ],
+          currentIndex: _selectedIndex,
+          selectedItemColor: Colors.blue[700],
+          unselectedItemColor: Colors.grey[600],
+          showUnselectedLabels: true,
+          onTap: _onItemTapped,
+        ),
       ),
     );
   }

@@ -16,12 +16,42 @@ class _HomeScreenState extends State<HomeScreen> {
   Map<String, dynamic>? homeData;
   bool isLoading = true;
   bool isGuest = false;
+  PageController _pageController = PageController();
+  int _currentPage = 0;
 
   @override
   void initState() {
     super.initState();
     _checkGuestStatus();
     fetchHomeData();
+    _startAutoSlide();
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  void _startAutoSlide() {
+    Future.delayed(Duration(seconds: 5), () {
+      if (mounted) {
+        if (_currentPage < (homeData?['informasi']?.length ?? 1) - 1) {
+          _currentPage++;
+        } else {
+          _currentPage = 0;
+        }
+        
+        if (_pageController.hasClients) {
+          _pageController.animateToPage(
+            _currentPage,
+            duration: Duration(milliseconds: 350),
+            curve: Curves.easeIn,
+          );
+        }
+        _startAutoSlide();
+      }
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -39,7 +69,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (isGuest) {
         final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/home'),
+          Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/home'),
           headers: {
             'Accept': 'application/json',
           },
@@ -62,7 +92,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/home'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/home'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -107,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
       
       if (isGuest) {
         final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto'),
+          Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto'),
           headers: {
             'Accept': 'application/json',
           },
@@ -133,7 +163,7 @@ class _HomeScreenState extends State<HomeScreen> {
       }
 
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/foto'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/foto'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -305,6 +335,10 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
+    if (type == 'informasi') {
+      return SizedBox.shrink(); // Skip building card style for informasi
+    }
+
     return Card(
       margin: EdgeInsets.all(8),
       shape: RoundedRectangleBorder(
@@ -369,6 +403,118 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: () => navigateToDetail(item),
               );
             },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInformationSlider(List<dynamic> informasi) {
+    return Container(
+      height: 200,
+      child: Column(
+        children: [
+          Expanded(
+            child: PageView.builder(
+              controller: _pageController,
+              onPageChanged: (int page) {
+                setState(() {
+                  _currentPage = page;
+                });
+              },
+              itemCount: informasi.length,
+              itemBuilder: (context, index) {
+                final info = informasi[index];
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => InfoScreen(),
+                      ),
+                    ).then((_) => fetchHomeData());
+                  },
+                  child: Card(
+                    margin: EdgeInsets.symmetric(horizontal: 8),
+                    child: Stack(
+                      children: [
+                        info['file'] != null
+                            ? Image.network(
+                                'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/storage/' + info['file'],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : Container(
+                                color: Colors.grey[300],
+                                child: Icon(Icons.image_not_supported),
+                              ),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                Colors.black.withOpacity(0.7),
+                                Colors.transparent,
+                                Colors.transparent,
+                                Colors.black.withOpacity(0.7),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 16,
+                          left: 16,
+                          right: 16,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                info['judul'] ?? '',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 18,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                info['ringkasan'] ?? '',
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.white,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: List.generate(
+              informasi.length,
+              (index) => Container(
+                margin: EdgeInsets.symmetric(horizontal: 4),
+                width: 8,
+                height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _currentPage == index ? Colors.blue : Colors.grey,
+                ),
+              ),
+            ),
           ),
         ],
       ),
@@ -518,7 +664,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             SizedBox(height: 16),
-            GridView.count(
+            if (homeData!['informasi'] != null && homeData!['informasi'].isNotEmpty)
+              _buildInformationSlider(homeData!['informasi']),
+            SizedBox(height: 16),
+            if (!isGuest) GridView.count(
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
@@ -542,7 +691,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             SizedBox(height: 8),
             _buildRecentSection('Recent Agenda', homeData!['agendas'], Icons.event, 'agenda'),
-            _buildRecentSection('Recent Informasi', homeData!['informasi'], Icons.info, 'informasi'),
             _buildRecentSection('Recent Albums', homeData!['albums'], Icons.photo_album, 'album'),
             _buildRecentSection('Recent Photos', homeData!['fotos'], Icons.photo_library, 'foto'),
             SizedBox(height: 24),

@@ -24,9 +24,12 @@ class KategoriOption {
 
 class _AgendaScreenState extends State<AgendaScreen> {
   List<Agenda> agendaList = [];
+  List<Agenda> filteredAgendaList = [];
   List<KategoriOption> kategoriOptions = [];
   bool isLoading = true;
   bool isGuest = false;
+  TextEditingController searchController = TextEditingController();
+  int? selectedKategoriId;
 
   @override
   void initState() {
@@ -34,6 +37,24 @@ class _AgendaScreenState extends State<AgendaScreen> {
     _checkGuestStatus();
     fetchAgenda();
     fetchKategori();
+    searchController.addListener(_filterAgenda);
+  }
+
+  void _filterAgenda() {
+    String searchTerm = searchController.text.toLowerCase();
+    setState(() {
+      filteredAgendaList = agendaList.where((agenda) {
+        bool matchesSearch = searchTerm.isEmpty ||
+            agenda.judul.toLowerCase().contains(searchTerm) ||
+            agenda.isi.toLowerCase().contains(searchTerm) ||
+            agenda.kategori.toLowerCase().contains(searchTerm);
+
+        bool matchesKategori = selectedKategoriId == null ||
+            agenda.kategoriId == selectedKategoriId;
+
+        return matchesSearch && matchesKategori;
+      }).toList();
+    });
   }
 
   Future<void> _checkGuestStatus() async {
@@ -49,35 +70,11 @@ class _AgendaScreenState extends State<AgendaScreen> {
       final token = prefs.getString('token');
       final isGuest = prefs.getBool('is_guest') ?? false;
       
-      if (isGuest) {
-        final response = await http.get(
-          Uri.parse('http://10.0.2.2/Web_Gallery/public/api/agenda'),
-          headers: {
-            'Accept': 'application/json',
-          },
-        ).timeout(Duration(seconds: 10));
-
-        if (response.statusCode == 200) {
-          List<dynamic> data = jsonDecode(response.body);
-          setState(() {
-            agendaList = data.map((json) => Agenda.fromJson(json)).toList();
-            isLoading = false;
-          });
-        } else {
-          throw Exception('Failed to load agenda');
-        }
-        return;
-      }
-
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/agenda'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/agenda'),
         headers: {
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (!isGuest && token != null) 'Authorization': 'Bearer $token',
         },
       ).timeout(Duration(seconds: 10));
 
@@ -85,6 +82,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
         List<dynamic> data = jsonDecode(response.body);
         setState(() {
           agendaList = data.map((json) => Agenda.fromJson(json)).toList();
+          filteredAgendaList = List.from(agendaList);
           isLoading = false;
         });
       } else if (response.statusCode == 401) {
@@ -105,15 +103,11 @@ class _AgendaScreenState extends State<AgendaScreen> {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('token');
       
-      if (token == null) {
-        throw Exception('Not authenticated');
-      }
-
       final response = await http.get(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/kategori'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/kategori'),
         headers: {
           'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
+          if (token != null) 'Authorization': 'Bearer $token',
         },
       );
 
@@ -318,7 +312,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.post(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/agenda'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/agenda'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -355,7 +349,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.put(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/agenda/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/agenda/$id'),
         headers: {
           'Accept': 'application/json',
           'Content-Type': 'application/json',
@@ -392,7 +386,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       if (token == null) throw Exception('Not authenticated');
 
       final response = await http.delete(
-        Uri.parse('http://10.0.2.2/Web_Gallery/public/api/agenda/$id'),
+        Uri.parse('https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/agenda/$id'),
         headers: {
           'Accept': 'application/json',
           'Authorization': 'Bearer $token',
@@ -459,60 +453,118 @@ class _AgendaScreenState extends State<AgendaScreen> {
             ),
         ],
       ),
-      body: isLoading
-          ? Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              itemCount: agendaList.length,
-              itemBuilder: (context, index) {
-                final agenda = agendaList[index];
-                return Card(
-                  margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  child: ListTile(
-                    title: Text(
-                      agenda.judul,
-                      style: TextStyle(fontWeight: FontWeight.bold),
+      body: Column(
+        children: [
+          Container(
+            padding: EdgeInsets.all(8.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search Agenda',
+                      prefixIcon: Icon(Icons.search),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      filled: true,
+                      fillColor: Theme.of(context).scaffoldBackgroundColor,
                     ),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          agenda.isi,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          'Status: ${agenda.status} | Kategori: ${agenda.kategori}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.blue,
+                  ),
+                ),
+                SizedBox(width: 8),
+                Container(
+                  width: 150,
+                  child: DropdownButtonFormField<int>(
+                    value: selectedKategoriId,
+                    decoration: InputDecoration(
+                      contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    items: [
+                      DropdownMenuItem(
+                        value: null,
+                        child: Text('Semua'),
+                      ),
+                      ...kategoriOptions.map((kategori) {
+                        return DropdownMenuItem(
+                          value: kategori.id,
+                          child: Text(kategori.judul),
+                        );
+                      }).toList(),
+                    ],
+                    onChanged: (value) {
+                      setState(() {
+                        selectedKategoriId = value;
+                        _filterAgenda();
+                      });
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: isLoading
+                ? Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                    itemCount: filteredAgendaList.length,
+                    itemBuilder: (context, index) {
+                      final agenda = filteredAgendaList[index];
+                      return Card(
+                        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        child: ListTile(
+                          title: Text(
+                            agenda.judul,
+                            style: TextStyle(fontWeight: FontWeight.bold),
                           ),
-                        ),
-                      ],
-                    ),
-                    trailing: !isGuest
-                        ? PopupMenuButton<String>(
-                            onSelected: (value) {
-                              if (value == 'edit') {
-                                showAddEditAgendaModal(agenda: agenda);
-                              } else if (value == 'delete') {
-                                confirmDelete(agenda);
-                              }
-                            },
-                            itemBuilder: (context) => [
-                              PopupMenuItem(value: 'edit', child: Text('Edit')),
-                              PopupMenuItem(
-                                value: 'delete',
-                                child: Text('Delete', style: TextStyle(color: Colors.red)),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                agenda.isi,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              SizedBox(height: 4),
+                              Text(
+                                'Status: ${agenda.status} | Kategori: ${agenda.kategori}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.blue,
+                                ),
                               ),
                             ],
-                          )
-                        : null,
-                    onTap: () => showAgendaDetail(agenda),
+                          ),
+                          trailing: !isGuest
+                              ? PopupMenuButton<String>(
+                                  onSelected: (value) {
+                                    if (value == 'edit') {
+                                      showAddEditAgendaModal(agenda: agenda);
+                                    } else if (value == 'delete') {
+                                      confirmDelete(agenda);
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    PopupMenuItem(value: 'edit', child: Text('Edit')),
+                                    PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('Delete', style: TextStyle(color: Colors.red)),
+                                    ),
+                                  ],
+                                )
+                              : null,
+                          onTap: () => showAgendaDetail(agenda),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
+          ),
+        ],
+      ),
     );
   }
 }

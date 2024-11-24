@@ -14,6 +14,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final TextEditingController _passwordController = TextEditingController();
   String? _errorMessage;
   bool _isLoading = false;
+  bool _obscurePassword = true;
 
   Future<void> _login() async {
     setState(() {
@@ -21,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
       _errorMessage = null;
     });
 
-    final String url = 'http://10.0.2.2/Web_Gallery/public/api/login';
+    final String url = 'https://ujikom2024pplg.smkn4bogor.sch.id/0077534259/Web_Gallery/public/api/login';
 
     try {
       print('Attempting login to: $url');
@@ -98,7 +99,6 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _continueAsGuest() async {
     final prefs = await SharedPreferences.getInstance();
-    // Set flag untuk menandai user sebagai guest
     await prefs.setBool('is_guest', true);
     await prefs.setString('name', 'Guest');
 
@@ -111,110 +111,197 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Login'),
-      ),
-      body: Center(
-        child: SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
-                    margin: EdgeInsets.symmetric(horizontal: 50),
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage('assets/logo.png'),
-                        fit: BoxFit.contain,
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              Colors.blue[400]!,
+              Colors.blue[800]!,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 30.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      height: 150,
+                      width: 150,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.2),
+                            spreadRadius: 5,
+                            blurRadius: 15,
+                          ),
+                        ],
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Image.asset('assets/logo.png'),
                       ),
                     ),
-                  ),
-                ),
-                SizedBox(height: 24),
-                Text(
-                  'SMKN 4 BOGOR',
-                  style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                ),
-                SizedBox(height: 32),
-                TextField(
-                  controller: _emailController,
-                  decoration: InputDecoration(
-                    labelText: 'Email',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.email),
-                  ),
-                  keyboardType: TextInputType.emailAddress,
-                ),
-                SizedBox(height: 16),
-                TextField(
-                  controller: _passwordController,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    border: OutlineInputBorder(),
-                    prefixIcon: Icon(Icons.lock),
-                  ),
-                  obscureText: true,
-                ),
-                SizedBox(height: 20),
-                if (_errorMessage != null)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 16.0),
-                    child: Text(
-                      _errorMessage!,
-                      style: TextStyle(color: Colors.red),
-                      textAlign: TextAlign.center,
+                    SizedBox(height: 30),
+                    Text(
+                      'SMKN 4 BOGOR',
+                      style: TextStyle(
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                        letterSpacing: 1.5,
+                      ),
                     ),
-                  ),
-                ElevatedButton(
-                  onPressed: _isLoading
-                      ? null
-                      : () {
-                          if (_emailController.text.isEmpty ||
-                              _passwordController.text.isEmpty) {
-                            setState(() {
-                              _errorMessage =
-                                  'Email dan Password tidak boleh kosong';
-                            });
-                          } else {
-                            _login();
-                          }
-                        },
-                  child: _isLoading
-                      ? SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+                    SizedBox(height: 40),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 10,
                           ),
-                        )
-                      : Text('Login'),
-                  style: ElevatedButton.styleFrom(
-                    minimumSize: Size(double.infinity, 50),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _emailController,
+                        decoration: InputDecoration(
+                          hintText: 'Email',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          prefixIcon: Icon(Icons.email, color: Colors.blue[800]),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                        ),
+                        keyboardType: TextInputType.emailAddress,
+                      ),
                     ),
-                  ),
-                ),
-                SizedBox(height: 16),
-                TextButton(
-                  onPressed: _continueAsGuest,
-                  child: Text(
-                    'Continue as Guest',
-                    style: TextStyle(
-                      color: Colors.grey,
-                      fontSize: 16,
+                    SizedBox(height: 20),
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.9),
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.1),
+                            spreadRadius: 1,
+                            blurRadius: 10,
+                          ),
+                        ],
+                      ),
+                      child: TextField(
+                        controller: _passwordController,
+                        decoration: InputDecoration(
+                          hintText: 'Password',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            borderSide: BorderSide.none,
+                          ),
+                          prefixIcon: Icon(Icons.lock, color: Colors.blue[800]),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                              color: Colors.blue[800],
+                            ),
+                            onPressed: () {
+                              setState(() {
+                                _obscurePassword = !_obscurePassword;
+                              });
+                            },
+                          ),
+                          filled: true,
+                          fillColor: Colors.transparent,
+                        ),
+                        obscureText: _obscurePassword,
+                      ),
                     ),
-                  ),
+                    SizedBox(height: 20),
+                    if (_errorMessage != null)
+                      Container(
+                        padding: EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                        decoration: BoxDecoration(
+                          color: Colors.red.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          _errorMessage!,
+                          style: TextStyle(color: Colors.red[800]),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    SizedBox(height: 30),
+                    ElevatedButton(
+                      onPressed: _isLoading
+                          ? null
+                          : () {
+                              if (_emailController.text.isEmpty ||
+                                  _passwordController.text.isEmpty) {
+                                setState(() {
+                                  _errorMessage =
+                                      'Email dan Password tidak boleh kosong';
+                                });
+                              } else {
+                                _login();
+                              }
+                            },
+                      child: Container(
+                        width: double.infinity,
+                        height: 55,
+                        child: Center(
+                          child: _isLoading
+                              ? SizedBox(
+                                  height: 24,
+                                  width: 24,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  'LOGIN',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1.5,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                        ),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[800],
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        elevation: 5,
+                      ),
+                    ),
+                    SizedBox(height: 20),
+                    TextButton(
+                      onPressed: _continueAsGuest,
+                      child: Text(
+                        'Continue as Guest',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
         ),
